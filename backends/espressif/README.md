@@ -24,8 +24,8 @@ delegate. The two flows have distinct quantizers:
 | `EspFusedQuantizer` | Operator library: shared Fused Quant annotation and fusion, followed by `EspPassManager` lowering to direct ESP-NN operators or portable fallback |
 
 Both flows use ESP-NN kernels. The operator library currently accelerates
-int8 tensor multiply with equal input shapes; its shared quantization rules
-also cover operators that still execute through portable fallback. The
+int8 tensor add and multiply with equal input shapes; its shared quantization
+rules also cover operators that still execute through portable fallback. The
 delegate's supported operators and export example are described below.
 
 ## Contents
