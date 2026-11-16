@@ -26,7 +26,13 @@ delegate. The two flows have distinct quantizers:
 Both flows use ESP-NN kernels. The operator library currently accelerates
 int8 tensor add with equal input shapes and multiply with equal shapes or a
 contiguous trailing block broadcast across the full tensor, including
-one-element tensors. Its shared quantization rules also cover operators that
+one-element tensors. It also accelerates values-only 4-D int8 MaxPool2d with matching input
+and output qparams, unit dilation, floor mode, and channel counts divisible by
+four. The shared Fused Quant layout pass introduces contiguous NHWC tensors for
+spatial operators; model inputs and outputs retain their original layout.
+Required layout copies are visible in the operator-library report and accepted
+in strict mode. Unsupported pooling configurations retain portable execution.
+Its shared quantization rules also cover operators that
 still execute through portable fallback. The delegate's supported operators
 and export example are described below.
 
