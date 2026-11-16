@@ -63,7 +63,7 @@ class EspMulWithFloatUsers(EspMul):
         return product, torch.sin(x), torch.sin(product)
 
 
-class EspBroadcastMul(EspMulWithFloatUsers):
+class EspUnsupportedBroadcastMul(EspMulWithFloatUsers):
     ops_after_transforms = {_MUL: 1, _ESP_MUL: 0}
 
 
@@ -111,8 +111,59 @@ test_cases = {
         (ramp_tensor(-1, 1, (2, 3)), ramp_tensor(-2, 2, (2, 3))),
     ),
     "broadcast": EspTestCase(
-        EspBroadcastMul(),
+        EspMulWithFloatUsers(),
         (ramp_tensor(-1, 1, (2, 3)), ramp_tensor(-2, 2, (3,))),
+    ),
+    "broadcast_reversed": EspTestCase(
+        EspMulWithFloatUsers(),
+        (ramp_tensor(-1.5, 2.5, (3,)), ramp_tensor(3, -4, (2, 3))),
+    ),
+    "broadcast_block": EspTestCase(
+        EspMul(),
+        (ramp_tensor(-1.5, 2.5, (2, 3, 16)), ramp_tensor(3, -4, (1, 3, 16))),
+    ),
+    "broadcast_block_reversed": EspTestCase(
+        EspMul(),
+        (ramp_tensor(-1.5, 2.5, (3, 16)), ramp_tensor(3, -4, (2, 3, 16))),
+    ),
+    "broadcast_tail": EspTestCase(
+        EspMul(),
+        (ramp_tensor(-1.5, 2.5, (3, 17)), ramp_tensor(3, -4, (1, 17))),
+    ),
+    "broadcast_singleton_dim": EspTestCase(
+        EspMul(),
+        (ramp_tensor(-1.5, 2.5, (2, 3, 1, 5)), ramp_tensor(3, -4, (3, 1, 5))),
+    ),
+    "broadcast_scalar": EspTestCase(
+        EspMul(),
+        (ramp_tensor(-1.5, 2.5, (2, 3)), torch.tensor(-2.0)),
+    ),
+    "broadcast_scalar_reversed": EspTestCase(
+        EspMul(),
+        (torch.tensor(-2.0), ramp_tensor(-1.5, 2.5, (2, 3))),
+    ),
+    "broadcast_scalar_leading_ones": EspTestCase(
+        EspMul(),
+        (torch.full((1, 1, 1), -2.0), ramp_tensor(-1.5, 2.5, (2, 3))),
+    ),
+    "broadcast_equal_numel": EspTestCase(
+        EspMul(),
+        (ramp_tensor(-1.5, 2.5, (2, 3)), ramp_tensor(3, -4, (1, 2, 3))),
+    ),
+    "broadcast_constant": EspTestCase(
+        EspConstantMul(), (ramp_tensor(-1.5, 2.5, (3, 17)),)
+    ),
+    "broadcast_inner_fallback": EspTestCase(
+        EspUnsupportedBroadcastMul(),
+        (ramp_tensor(-1.5, 2.5, (2, 3)), ramp_tensor(3, -4, (2, 1))),
+    ),
+    "broadcast_both_inputs_fallback": EspTestCase(
+        EspUnsupportedBroadcastMul(),
+        (ramp_tensor(-1.5, 2.5, (2, 1)), ramp_tensor(3, -4, (1, 2))),
+    ),
+    "broadcast_nchw_channel_fallback": EspTestCase(
+        EspUnsupportedBroadcastMul(),
+        (ramp_tensor(-1.5, 2.5, (2, 3, 4, 5)), ramp_tensor(3, -4, (1, 3, 1, 1))),
     ),
     "mul_add": EspTestCase(
         EspMulAdd(),
@@ -145,6 +196,8 @@ def test_dialect_mul(test_case):
         atol=0,
         rtol=torch.finfo(torch.float32).eps if accelerated else 0,
     )
+    if accelerated:
+        tester.check_node_count({exir_ops.edge.aten.expand_copy.default: 0})
     if isinstance(test_case.model, EspMulWithFloatUsers):
         actual = (
             tester.get_artifact().exported_program().module()(*test_case.example_inputs)
