@@ -12,6 +12,10 @@ from typing import Any
 import executorch.exir.dialects.fused_quant.ops  # noqa
 import torch
 from executorch.backends.test.program_builder import ProgramBuilder
+from executorch.backends.transforms.fused_quant.decompose_fused_quant import (
+    AssertNoFusedQuantOps,
+    DecomposeFusedQuant,
+)
 from executorch.backends.transforms.fused_quant.optimization_passes.to_channels_last import (
     ToChannelsLast,
 )
@@ -598,6 +602,28 @@ class ToChannelsLastTest(unittest.TestCase):
             tuple(get_arg(pool, "out_scale", torch.fx.Node).meta["val"].shape),
             (1, 1, 1, 4),
         )
+
+    @parameterized.expand(["max", "avg"])
+    def test_unbatched_pool_stays_portable(self, pool: str) -> None:
+        if pool == "max":
+            program, inp = _build_fused_quant_max_pool2d_with_indices_graph(
+                (4, 7, 9), ([3, 3], [2, 2], [1, 1], [1, 1], False)
+            )
+        else:
+            program, inp = _build_fused_quant_avg_pool2d_graph(
+                (4, 7, 9), ([3, 3], [2, 2], [1, 1], False, True, None)
+            )
+        expected = program.module()(inp)
+        original_graph = str(program.graph)
+
+        result = ToChannelsLast().call(program.graph_module)
+
+        self.assertFalse(result.modified)
+        self.assertEqual(str(program.graph), original_graph)
+        self.assert_bit_exact(expected, program.module()(inp))
+        decomposed = DecomposeFusedQuant()(program).exported_program
+        AssertNoFusedQuantOps()(decomposed)
+        self.assert_bit_exact(expected, decomposed.module()(inp))
 
     def test_leaves_claimed_node_alone(self) -> None:
         """Of two identical pools, only the unclaimed one is relaid out."""
