@@ -39,6 +39,33 @@ per-output-channel symmetric int8 weights, and optional constant int32 bias.
 Leading input dimensions are treated as batch rows by ESP-NN's batched fully
 connected API. Unsupported linear calls fail at export with the reason;
 portable linear fallback is not available yet, even when CPU fallback is enabled.
+Conv2d supports static 4-D int8 inputs, constant per-output-channel symmetric
+weights, optional derived int32 bias, `groups=1`, and unit dilation. Batches,
+rectangular kernels, stride and padding are supported. Other convolution
+configurations retain portable execution.
+
+Set the recipe's `EspTarget` and `EspKernelMode` to match the device's ESP-NN
+configuration when planning scratch:
+
+```python
+recipe = get_esp_fused_quant_recipe(
+    target=EspTarget.ESP32P4, kernel_mode=EspKernelMode.OPTIMIZED
+)
+```
+
+The defaults are `EspTarget.ESP32S3` and `EspKernelMode.OPTIMIZED`.
+Accelerated Conv2d export requires the optional [scratch-size bindings](#scratch-size-queries).
+If the selected binding or query is unavailable, convolution retains portable
+execution; strict export rejects that fallback. Other operator exports do not
+require the bindings.
+
+Lowering adds a scratch Tensor to each convolution call, and ordinary memory
+planning assigns its storage and 16-byte alignment. The device checks its
+required size before using the buffer. Scratch follows the planned arena's
+memory placement. ESP-NN uses a global scratch pointer: applications must
+serialize operator-library inference and must not run it concurrently with
+the delegate or other ESP-NN calls.
+
 The shared Fused Quant layout pass introduces contiguous NHWC tensors for
 spatial operators; model inputs and outputs retain their original layout.
 Required layout copies are visible in the operator-library report and accepted

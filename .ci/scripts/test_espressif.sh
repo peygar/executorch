@@ -68,7 +68,7 @@ python examples/espressif/export_espnn_test_programs.py \
 espnn_ops=$(tr -d '\n' < "${build_dir}/espnn-tests/operators.txt" \
     | tr ',' '\n' | grep -v '^quantized_decomposed::' | paste -sd, -)
 if [[ "${espnn_kernels}" == optimized ]]; then
-    espnn_ops="${espnn_ops},aten::sin.out,aten::relu.out,aten::max_pool2d_with_indices.out,aten::avg_pool2d.out,aten::permute_copy.out"
+    espnn_ops="${espnn_ops},aten::sin.out,aten::relu.out,aten::max_pool2d_with_indices.out,aten::avg_pool2d.out,aten::permute_copy.out,aten::convolution.out"
 fi
 
 cmake --preset esp-baremetal -G Ninja -B "${build_dir}/runtime" \
@@ -166,8 +166,12 @@ if [[ "${espnn_kernels}" == optimized ]]; then
         -x -v --tb=short backends/espressif/test/ops -k implementation \
         2>&1 | tee "${build_dir}/operator-library-tests.log"
     for sdkconfig in "${build_dir}"/operator-library-*/sdkconfig; do
-        if ! grep -qx 'CONFIG_NN_OPTIMIZED=y' "${sdkconfig}"; then
-            echo "Expected CONFIG_NN_OPTIMIZED=y in ${sdkconfig}" >&2
+        expected_config=CONFIG_NN_OPTIMIZED
+        if [[ "${sdkconfig}" == *-ansi/sdkconfig ]]; then
+            expected_config=CONFIG_NN_ANSI_C
+        fi
+        if ! grep -qx "${expected_config}=y" "${sdkconfig}"; then
+            echo "Expected ${expected_config}=y in ${sdkconfig}" >&2
             exit 1
         fi
     done

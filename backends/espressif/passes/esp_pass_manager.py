@@ -6,6 +6,7 @@
 
 import copy
 
+from executorch.backends.espressif.target import EspKernelMode, EspTarget
 from executorch.backends.transforms.fused_quant.decompose_fused_quant import (
     AssertNoFusedQuantOps,
     DecomposeFusedQuant,
@@ -30,12 +31,17 @@ from .fused_quant_to_esp_pass import FusedQuantToEspPass
 class EspPassManager(ExportedProgramPassManager):
     """Lower fused-quant Edge operators to ESP-NN or portable kernels."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        target: EspTarget = EspTarget.ESP32S3,
+        kernel_mode: EspKernelMode = EspKernelMode.OPTIMIZED,
+    ) -> None:
         super().__init__(
             passes=[
                 ToChannelsLast(),
                 ExportPass(),
-                FusedQuantToEspPass(),
+                FusedQuantToEspPass(target=target, kernel_mode=kernel_mode),
                 ToChannelsFirst(),
                 DecomposeFusedQuant(),
                 RemoveUnusedConstantsPass(),

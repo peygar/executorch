@@ -16,6 +16,7 @@ import executorch.kernels.quantized  # noqa: F401  registers quantize/dequantize
 from executorch.backends.espressif.partition.espnn_partitioner import EspNNPartitioner
 from executorch.backends.espressif.passes import EspPassManager
 from executorch.backends.espressif.quantizer import EspFusedQuantizer
+from executorch.backends.espressif.target import EspKernelMode, EspTarget
 from executorch.exir import (
     EdgeCompileConfig,
     EdgeProgramManager,
@@ -76,6 +77,7 @@ def get_operator_library_report(edge: EdgeProgramManager) -> dict:
                         in {
                             "esp_nn::quantized_max_pool2d_int8",
                             "esp_nn::quantized_avg_pool2d_int8",
+                            "esp_nn::quantized_conv2d_int8",
                         }
                         for neighbor in neighbors
                     ):
@@ -120,6 +122,8 @@ def get_esp_fused_quant_recipe(
     *,
     quantizer: FusedQuantQuantizer | None = None,
     allow_cpu_fallback: bool = True,
+    target: EspTarget = EspTarget.ESP32S3,
+    kernel_mode: EspKernelMode = EspKernelMode.OPTIMIZED,
 ) -> ExportRecipe:
     """Quantize and lower a float model for the Espressif operator library.
 
@@ -127,6 +131,8 @@ def get_esp_fused_quant_recipe(
     direct ESP-NN calls; other operators decompose to portable kernels. Setting
     allow_cpu_fallback=False rejects remaining compute, excluding Q/DQ and required NHWC layout copies.
     Unsupported linear calls currently raise even when CPU fallback is enabled.
+    Set target and kernel_mode to match the device's ESP-NN configuration
+    when planning scratch.
     The EspNNBackend delegate continues to use EspNNQuantizer and to_espnn_edge.
     """
     quantizer = quantizer if quantizer is not None else EspFusedQuantizer()
@@ -135,7 +141,7 @@ def get_esp_fused_quant_recipe(
         quantizer.fuse(graph_module)
         return graph_module
 
-    transforms = [lambda _: EspPassManager()]
+    transforms = [lambda _: EspPassManager(target=target, kernel_mode=kernel_mode)]
     if not allow_cpu_fallback:
         transforms.append(_require_no_portable_compute)
     return ExportRecipe(

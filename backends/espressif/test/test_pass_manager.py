@@ -260,9 +260,9 @@ def test_strict_export_rejects_user_permute():
     "model, shape",
     [
         (torch.nn.Conv1d(4, 8, 3), (1, 4, 9)),
-        (torch.nn.Conv2d(4, 8, 3), (1, 4, 7, 9)),
+        (torch.nn.Conv2d(4, 8, 3, groups=2), (1, 4, 7, 9)),
     ],
-    ids=["conv1d", "conv2d"],
+    ids=["conv1d", "grouped_conv2d"],
 )
 def test_other_spatial_operators_remain_portable(model, shape):
     inputs = (torch.linspace(-1, 1, math.prod(shape)).reshape(shape),)
