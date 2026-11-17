@@ -126,6 +126,7 @@ def get_esp_fused_quant_recipe(
     Use with executorch.export.export(). Supported Fused Quant operators become
     direct ESP-NN calls; other operators decompose to portable kernels. Setting
     allow_cpu_fallback=False rejects remaining compute, excluding Q/DQ and required NHWC layout copies.
+    Unsupported linear calls currently raise even when CPU fallback is enabled.
     The EspNNBackend delegate continues to use EspNNQuantizer and to_espnn_edge.
     """
     quantizer = quantizer if quantizer is not None else EspFusedQuantizer()

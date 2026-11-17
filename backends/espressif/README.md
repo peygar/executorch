@@ -33,6 +33,12 @@ input/output qparams, floor mode, and no divisor override. Padding is supported
 when `count_include_pad=False`.
 Its integer kernel rounds ties away from zero; the FQ reference rounds ties to
 even, so results can differ by one int8 step.
+Linear supports static, contiguous int8 inputs of rank one or higher, constant
+per-output-channel symmetric int8 weights, and optional constant int32 bias.
+`EspFusedQuantizer` derives the bias scales from input and weight scales.
+Leading input dimensions are treated as batch rows by ESP-NN's batched fully
+connected API. Unsupported linear calls fail at export with the reason;
+portable linear fallback is not available yet, even when CPU fallback is enabled.
 The shared Fused Quant layout pass introduces contiguous NHWC tensors for
 spatial operators; model inputs and outputs retain their original layout.
 Required layout copies are visible in the operator-library report and accepted
