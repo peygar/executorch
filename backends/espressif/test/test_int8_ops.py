@@ -228,6 +228,15 @@ class TransposeSelect(nn.Module):
 torch.manual_seed(20261014)
 
 
+class ConvAvgPool(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        self.conv = nn.Conv2d(channels, channels, 1)
+
+    def forward(self, x):
+        return F.avg_pool2d(self.conv(x), 2)
+
+
 class GroupedConvs(nn.Module):
     """Grouped (not depthwise) convolutions: plain, strided and dilated."""
 
@@ -263,6 +272,10 @@ CASES = [
     ("broadcast-pad-split-cat", BroadcastPadSplit(), [(1, 4, 6, 6)], 2),
     ("two-inputs-two-outputs", TwoInputTwoOutput(), [(1, 3, 12, 12), (1, 6)], 2),
     ("transpose-select-stack", TransposeSelect(), [(1, 3, 4, 5)], 2),
+    ("avgpool-wide-c4", ConvAvgPool(4), [(1, 4, 5, 7)], 2),
+    ("avgpool-tall-c4", ConvAvgPool(4), [(1, 4, 7, 5)], 2),
+    ("avgpool-wide-c8", ConvAvgPool(8), [(1, 8, 5, 7)], 2),
+    ("avgpool-tall-c8", ConvAvgPool(8), [(1, 8, 7, 5)], 2),
 ]
 
 
