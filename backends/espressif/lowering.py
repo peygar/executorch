@@ -78,6 +78,7 @@ def get_operator_library_report(edge: EdgeProgramManager) -> dict:
                             "esp_nn::quantized_max_pool2d_int8",
                             "esp_nn::quantized_avg_pool2d_int8",
                             "esp_nn::quantized_conv2d_int8",
+                            "esp_nn::quantized_depthwise_conv2d_int8",
                         }
                         for neighbor in neighbors
                     ):

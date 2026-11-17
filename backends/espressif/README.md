@@ -40,9 +40,13 @@ Leading input dimensions are treated as batch rows by ESP-NN's batched fully
 connected API. Unsupported linear calls fail at export with the reason;
 portable linear fallback is not available yet, even when CPU fallback is enabled.
 Conv2d supports static 4-D int8 inputs, constant per-output-channel symmetric
-weights, optional derived int32 bias, `groups=1`, and unit dilation. Batches,
-rectangular kernels, stride and padding are supported. Other convolution
-configurations retain portable execution.
+weights, optional derived int32 bias, and unit dilation. Ordinary convolution
+uses `groups=1`; depthwise uses `groups=input_channels` and supports positive
+integer channel multipliers within the vendor's dimension and indexing bounds.
+Batches, rectangular kernels, stride and padding are supported. ESP-NN selects
+SIMD or vendor C kernels for each shape; constant depthwise weights are packed
+into its `1HWO` order at export. Other convolution configurations retain portable
+execution.
 
 Set the recipe's `EspTarget` and `EspKernelMode` to match the device's ESP-NN
 configuration when planning scratch:

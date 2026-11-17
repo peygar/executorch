@@ -52,10 +52,11 @@ class _LinearQuantizer(OpQuantizer):
 class _ConvolutionQuantizer(ConvolutionQuantizer):
     def annotate_node(self, node: torch.fx.Node) -> None:
         super().annotate_node(node)
+        shape = get_arg(node, "input", torch.fx.Node).meta["val"].shape
         if (
             not get_arg(node, "transposed")
-            and get_arg(node, "groups") == 1
-            and get_arg(node, "input", torch.fx.Node).meta["val"].dim() == 4
+            and len(shape) == 4
+            and get_arg(node, "groups") in (1, shape[1])
         ):
             _annotate_bias(node)
 
@@ -101,7 +102,8 @@ class EspFusedQuantizer(FusedQuantQuantizer):
     """Fused Quant quantizer for the Espressif operator-library backend.
 
     Uses int8 per-tensor affine activations and symmetric weights, with
-    per-channel weights for linear and convolution. Constant linear and ordinary Conv2d biases use
+    per-channel weights for linear and convolution. Constant linear, ordinary
+    Conv2d, and depthwise Conv2d biases use
     int32 with scales derived from the input and weight observers.
     EspPassManager lowers supported Fused Quant operators to ESP-NN and
     decomposes the rest for portable execution. Use EspNNQuantizer for the
