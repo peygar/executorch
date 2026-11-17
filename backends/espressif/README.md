@@ -28,7 +28,15 @@ int8 tensor add with equal input shapes and multiply with equal shapes or a
 contiguous trailing block broadcast across the full tensor, including
 one-element tensors. It also accelerates values-only 4-D int8 MaxPool2d with matching input
 and output qparams, unit dilation, floor mode, and channel counts divisible by
-four. The shared Fused Quant layout pass introduces contiguous NHWC tensors for
+four. AvgPool2d uses the same shape and channel restrictions, with shared
+input/output qparams, floor mode, and no divisor override. Padding is supported
+when `count_include_pad=False`. AvgPool2d acceleration currently requires square
+outputs or a single output row because ESP-NN 1.4.1's optimized S3 kernel has
+an output-row-stride bug; other output shapes retain portable execution.
+The upstream fix is available in ESP-NN 1.4.2; this backend still pins 1.4.1.
+Its integer kernel rounds ties away from zero; the FQ reference rounds ties to
+even, so results can differ by one int8 step.
+The shared Fused Quant layout pass introduces contiguous NHWC tensors for
 spatial operators; model inputs and outputs retain their original layout.
 Required layout copies are visible in the operator-library report and accepted
 in strict mode. Unsupported pooling configurations retain portable execution.

@@ -4,13 +4,23 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import torch
 from executorch.backends.xnnpack.quantizer.xnnpack_quantizer import (
     get_symmetric_quantization_config,
 )
 from executorch.frontends.fused_quant.quantizer.quantizer import (
     FusedQuantQuantizer,
     get_core_aten_quantizers,
+    OpQuantizer,
 )
+from torchao.quantization.pt2e.quantizer import SharedQuantizationSpec
+from torchao.quantization.pt2e.quantizer.utils import annotate_output_qspec
+
+
+class _AvgPoolQuantizer(OpQuantizer):
+    def annotate_node(self, node: torch.fx.Node) -> None:
+        super().annotate_node(node)
+        annotate_output_qspec(node, SharedQuantizationSpec((node.args[0], node)))
 
 
 class EspFusedQuantizer(FusedQuantQuantizer):
@@ -23,9 +33,17 @@ class EspFusedQuantizer(FusedQuantQuantizer):
     """
 
     def __init__(self) -> None:
+        config = get_symmetric_quantization_config(is_per_channel=False)
         super().__init__(
-            get_core_aten_quantizers(
-                get_symmetric_quantization_config(is_per_channel=False),
-                get_symmetric_quantization_config(is_per_channel=True),
-            )
+            [
+                _AvgPoolQuantizer(
+                    torch.ops.aten.avg_pool2d.default,
+                    torch.ops.fused_quant.avg_pool2d.default,
+                    config,
+                ),
+                *get_core_aten_quantizers(
+                    config,
+                    get_symmetric_quantization_config(is_per_channel=True),
+                ),
+            ]
         )

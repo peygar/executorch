@@ -73,7 +73,10 @@ def get_operator_library_report(edge: EdgeProgramManager) -> dict:
                     if any(
                         isinstance(neighbor.target, (EdgeOpOverload, OpOverload))
                         and neighbor.target._schema.name
-                        == "esp_nn::quantized_max_pool2d_int8"
+                        in {
+                            "esp_nn::quantized_max_pool2d_int8",
+                            "esp_nn::quantized_avg_pool2d_int8",
+                        }
                         for neighbor in neighbors
                     ):
                         layout_ops.append(
