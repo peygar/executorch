@@ -6,8 +6,12 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+#include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <string>
 
 #include <esp_nn.h>
 #include <pybind11/pybind11.h>
@@ -15,12 +19,31 @@
 
 namespace {
 
+template <std::size_t N>
+void check_bounds(
+    const std::array<int32_t, N>& values,
+    const char* name,
+    int32_t minimum = 1) {
+  if (std::any_of(values.begin(), values.end(), [minimum](int32_t value) {
+        return value < minimum || value > std::numeric_limits<uint16_t>::max();
+      })) {
+    throw pybind11::value_error(
+        std::string(name) + " must be in [" + std::to_string(minimum) +
+        ", 65535]");
+  }
+}
+
 int conv2d_scratch_size(
     std::array<int32_t, 3> input_dims,
     std::array<int32_t, 3> filter_dims,
     std::array<int32_t, 3> output_dims,
     std::array<int32_t, 2> stride,
     std::array<int32_t, 2> padding) {
+  check_bounds(input_dims, "input_dims");
+  check_bounds(filter_dims, "filter_dims");
+  check_bounds(output_dims, "output_dims");
+  check_bounds(stride, "stride");
+  check_bounds(padding, "padding", 0);
   const data_dims_t input{input_dims[0], input_dims[1], input_dims[2], 0};
   const data_dims_t filter{filter_dims[0], filter_dims[1], filter_dims[2], 0};
   const data_dims_t output{output_dims[0], output_dims[1], output_dims[2], 0};
@@ -38,6 +61,12 @@ int depthwise_conv2d_scratch_size(
     std::array<int32_t, 2> stride,
     std::array<int32_t, 2> padding,
     int32_t channel_multiplier) {
+  check_bounds(input_dims, "input_dims");
+  check_bounds(filter_dims, "filter_dims");
+  check_bounds(output_dims, "output_dims");
+  check_bounds(stride, "stride");
+  check_bounds(padding, "padding", 0);
+  check_bounds(std::array{channel_multiplier}, "channel_multiplier");
   const data_dims_t input{input_dims[0], input_dims[1], input_dims[2], 0};
   const data_dims_t filter{filter_dims[0], filter_dims[1], filter_dims[2], 0};
   const data_dims_t output{output_dims[0], output_dims[1], output_dims[2], 0};

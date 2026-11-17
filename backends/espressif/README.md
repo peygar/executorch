@@ -77,8 +77,10 @@ if queries is not None:
     )
 ```
 
-Dimensions use `(width, height, channels)`; stride and padding use
-`(width, height)`. Convolution queries use unit dilation. Sizes are in bytes,
+Convolution queries use `(width, height, channels)` for dimensions,
+`(width, height)` for stride and padding, and unit dilation. Dimensions,
+strides, and depthwise channel multipliers must be in `[1, 65535]`; padding must be in
+`[0, 65535]`. Invalid values raise `ValueError`. Sizes are in bytes,
 including zero for kernels that need no scratch. `get_scratch_queries` returns
 `None` when the selected binding is unavailable.
 

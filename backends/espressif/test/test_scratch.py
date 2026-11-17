@@ -55,6 +55,89 @@ def test_fc_dimension_bounds(dimension, value):
         queries.fc_batch_scratch_size(**args)
 
 
+@pytest.fixture(
+    params=[
+        (EspTarget.ESP32S3, EspKernelMode.OPTIMIZED),
+        (EspTarget.ESP32P4, EspKernelMode.OPTIMIZED),
+        (EspTarget.ESP32, EspKernelMode.OPTIMIZED),
+        (EspTarget.ESP32S3, EspKernelMode.ANSI),
+    ],
+    ids=["s3", "pie", "generic", "ansi"],
+)
+def scratch_queries(request):
+    queries = get_scratch_queries(*request.param)
+    if queries is None:
+        pytest.skip("Build with EXECUTORCH_BUILD_ESP_NN_PYBINDS=ON")
+    return queries
+
+
+@pytest.mark.parametrize("depthwise", [False, True], ids=["conv", "depthwise"])
+@pytest.mark.parametrize(
+    "argument,value",
+    [
+        (argument, value)
+        for argument in ("input_dims", "filter_dims", "output_dims", "stride")
+        for value in (-1, 0, 65536)
+    ]
+    + [("padding", -1), ("padding", 65536)],
+)
+def test_convolution_dimension_bounds(scratch_queries, depthwise, argument, value):
+    args = {
+        "input_dims": (8, 8, 3),
+        "filter_dims": (1, 1, 3),
+        "output_dims": (8, 8, 16),
+        "stride": (1, 1),
+        "padding": (0, 0),
+    }
+    query = scratch_queries.conv2d_scratch_size
+    if depthwise:
+        query = scratch_queries.depthwise_conv2d_scratch_size
+        args["output_dims"] = (8, 8, 3)
+        args["channel_multiplier"] = 1
+    for axis in range(len(args[argument])):
+        invalid = list(args[argument])
+        invalid[axis] = value
+        with pytest.raises(ValueError, match=argument):
+            query(**{**args, argument: tuple(invalid)})
+
+
+def test_convolution_dimension_boundaries(scratch_queries):
+    assert (
+        scratch_queries.conv2d_scratch_size(
+            input_dims=(65535, 1, 1),
+            filter_dims=(1, 1, 1),
+            output_dims=(65535, 1, 1),
+            stride=(1, 1),
+            padding=(0, 0),
+        )
+        >= 0
+    )
+    assert (
+        scratch_queries.depthwise_conv2d_scratch_size(
+            input_dims=(1, 1, 1),
+            filter_dims=(1, 1, 1),
+            output_dims=(1, 1, 65535),
+            stride=(1, 1),
+            padding=(0, 0),
+            channel_multiplier=65535,
+        )
+        >= 0
+    )
+
+
+@pytest.mark.parametrize("value", [-1, 0, 65536])
+def test_depthwise_multiplier_bounds(scratch_queries, value):
+    with pytest.raises(ValueError, match="channel_multiplier"):
+        scratch_queries.depthwise_conv2d_scratch_size(
+            input_dims=(8, 8, 3),
+            filter_dims=(1, 1, 3),
+            output_dims=(8, 8, 3),
+            stride=(1, 1),
+            padding=(0, 0),
+            channel_multiplier=value,
+        )
+
+
 def test_missing_binding(monkeypatch):
     monkeypatch.setitem(
         sys.modules, "executorch.backends.espressif._esp_nn_scratch_esp32s3", None
