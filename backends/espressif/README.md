@@ -26,7 +26,13 @@ delegate. The two flows have distinct quantizers:
 Both flows use ESP-NN 1.5.0 kernels. The operator library currently accelerates
 int8 tensor add with equal input shapes and multiply with equal shapes or a
 contiguous trailing block broadcast across the full tensor, including
-one-element tensors. It also accelerates values-only 4-D int8 MaxPool2d with matching input
+one-element tensors. Sigmoid, tanh, GELU, SiLU, HardSwish, HardSigmoid, ReLU,
+and HardTanh (including ReLU6) support static, contiguous int8 tensors with
+constant per-tensor input and output qparams. Export evaluates all 256 input
+codes with the FQ reference, using calibrated qparams, and stores the results
+as a 256-byte constant table. The `quantized_lut_int8` operator applies that
+table using ESP-NN's logistic lookup kernel, without scratch storage.
+It also accelerates values-only 4-D int8 MaxPool2d with matching input
 and output qparams, unit dilation, floor mode, and channel counts divisible by
 four. AvgPool2d uses the same shape and channel restrictions, with shared
 input/output qparams, floor mode, and no divisor override. Padding is supported

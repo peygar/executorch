@@ -6,6 +6,7 @@
 
 idf_component_register(
   SRCS
+  "ops/op_quantized_lut.cpp"
   "ops/op_quantized_mul.cpp"
   "ops/op_quantized_add.cpp"
   "ops/op_quantized_max_pool2d.cpp"
